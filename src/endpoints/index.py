@@ -6,7 +6,7 @@ from starlette.requests import Request
 router = APIRouter()
 templates = Jinja2Templates(directory='src/templates')
 
-@router.get('/', response_class=HTMLResponse)
+@router.get('/', response_class=HTMLResponse, summary='Получить главную страницу')
 async def main(request: Request):
     conn = request.app.state.db
     try:

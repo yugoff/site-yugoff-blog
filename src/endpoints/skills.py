@@ -4,7 +4,7 @@ from src.schemas.skills import SkillsItem
 
 router = APIRouter()
 
-@router.post('/skills')
+@router.post('/skills', summary='Получить все скиллы из бд')
 async def add_skills(request: Request, skills: SkillsItem):
     conn = request.app.state.db
     try:

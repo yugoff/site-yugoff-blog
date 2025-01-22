@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stream Page</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            padding: 0;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        h1 {
+            text-align: center;
+        }
+        .camera-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            justify-content: center;
+            margin-top: 20px;
+        }
+        .camera {
+            flex: 1 1 calc(50% - 20px);
+            max-width: calc(50% - 20px);
+        }
+        video {
+            width: 100%;
+            height: auto;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Video Streams</h1>
+        <button id="search-streams-btn">Search Open Streams</button>
+        <div id="streams-list" class="hidden">
+            <h2>Available Streams:</h2>
+            <ul id="streams-options"></ul>
+            <button id="start-streams-btn">Start Selected Streams</button>
+        </div>
+        <div id="camera-container" class="camera-container">
+            <!-- Video elements will appear here -->
+        </div>
+    </div>
+
+    <script>
+        const searchButton = document.getElementById('search-streams-btn');
+        const startButton = document.getElementById('start-streams-btn');
+        const streamsList = document.getElementById('streams-list');
+        const streamsOptions = document.getElementById('streams-options');
+        const cameraContainer = document.getElementById('camera-container');
+
+        // Function to search for streams via the API
+        searchButton.addEventListener('click', async () => {
+            try {
+                const response = await fetch('stream/api/search_stream');
+                const data = await response.json();
+
+                if (data.streams.length > 0) {
+                    streamsOptions.innerHTML = ''; // Clear previous options
+                    data.streams.forEach(stream => {
+                        const li = document.createElement('li');
+                        const checkbox = document.createElement('input');
+                        checkbox.type = 'checkbox';
+                        checkbox.id = `stream-${stream.id}`;
+                        checkbox.value = stream.url;
+
+                        const label = document.createElement('label');
+                        label.setAttribute('for', `stream-${stream.id}`);
+                        label.textContent = stream.name;
+
+                        li.appendChild(checkbox);
+                        li.appendChild(label);
+                        streamsOptions.appendChild(li);
+                    });
+                    streamsList.classList.remove('hidden');
+                } else {
+                    alert('No streams found!');
+                }
+            } catch (error) {
+                console.error('Error fetching streams:', error);
+                alert('Failed to search for streams.');
+            }
+        });
+
+        // Function to start selected streams
+        startButton.addEventListener('click', () => {
+            const selectedStreams = Array.from(
+                streamsOptions.querySelectorAll('input:checked')
+            ).map(input => input.value);
+
+            cameraContainer.innerHTML = ''; // Clear previous streams
+            selectedStreams.forEach(url => {
+                const video = document.createElement('video');
+                video.src = url;
+                video.controls = true;
+                video.autoplay = true;
+                video.classList.add('camera');
+                cameraContainer.appendChild(video);
+            });
+        });
+    </script>
+</body>
+</html>

@@ -4,7 +4,7 @@ from src.schemas.portfolio import PortfolioItem
 
 router = APIRouter()
 
-@router.post('/portfolio')
+@router.post('/portfolio', summary='Получить все проекты из бд')
 async def add_portfolio(request: Request, portfolio: PortfolioItem):
     conn = request.app.state.db
     try:
