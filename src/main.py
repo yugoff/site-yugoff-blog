@@ -20,13 +20,15 @@ async def lifespan(app: FastAPI):
     finally:
         logger.info('Closing DB connection...')
         await close_db(conn)
+        # Закрываем WebRTC соединения
+        await stream.close_connections()
 
 app = FastAPI(lifespan=lifespan)
+
+logging.basicConfig(level=logging.INFO)
 
 app.mount('/static', StaticFiles(directory='src/static'), name='static')
 app.include_router(index.router)
 app.include_router(stream.router, prefix='/projects')
 app.include_router(skills.router, prefix='/api')
 app.include_router(portfolio.router, prefix='/api')
-
-

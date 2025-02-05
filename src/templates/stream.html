@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stream Page</title>
+    <title>RTSP Streams</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -11,28 +11,20 @@
             padding: 0;
         }
         .container {
-            max-width: 800px;
+            max-width: 1200px;
             margin: 0 auto;
         }
-        h1 {
-            text-align: center;
-        }
         .camera-container {
-            display: flex;
-            flex-wrap: wrap;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
             gap: 20px;
-            justify-content: center;
             margin-top: 20px;
         }
         .camera {
-            flex: 1 1 calc(50% - 20px);
-            max-width: calc(50% - 20px);
-        }
-        video {
             width: 100%;
-            height: auto;
-            border: 1px solid #ddd;
-            border-radius: 5px;
+            aspect-ratio: 16/9;
+            background: #000;
+            border-radius: 8px;
         }
         .hidden {
             display: none;
@@ -41,39 +33,98 @@
 </head>
 <body>
     <div class="container">
-        <h1>Video Streams</h1>
-        <button id="search-streams-btn">Search Open Streams</button>
+        <h1>RTSP Streams</h1>
+        <button id="search-streams-btn">Search Cameras</button>
         <div id="streams-list" class="hidden">
-            <h2>Available Streams:</h2>
+            <h2>Available Cameras:</h2>
             <ul id="streams-options"></ul>
-            <button id="start-streams-btn">Start Selected Streams</button>
+            <button id="start-streams-btn">Connect to Selected Cameras</button>
         </div>
         <div id="camera-container" class="camera-container">
-            <!-- Video elements will appear here -->
+            <!-- Video elements will be added here -->
         </div>
     </div>
 
     <script>
+        class RTSPPlayer {
+            constructor(streamUrl, videoElement) {
+                this.streamUrl = streamUrl;
+                this.videoElement = videoElement;
+                this.peerConnection = null;
+            }
+
+            async start() {
+                console.log(`Starting stream: ${this.streamUrl}`);
+                this.peerConnection = new RTCPeerConnection({
+                    iceServers: [{ urls: ['stun:stun.l.google.com:19302'] }]
+                });
+
+                this.peerConnection.ontrack = ({track, streams}) => {
+                    if (track.kind === 'video') {
+                        this.videoElement.srcObject = streams[0];
+                    }
+                };
+
+                try {
+                    const offer = await this.peerConnection.createOffer({
+                        offerToReceiveVideo: true,
+                        offerToReceiveAudio: true,
+                    });
+                    await this.peerConnection.setLocalDescription(offer);
+
+                    const response = await fetch('/projects/stream/offer', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            sdp: offer.sdp,
+                            type: offer.type,
+                            stream_url: this.streamUrl,
+                        }),
+                    });
+
+                    const answer = await response.json();
+                    await this.peerConnection.setRemoteDescription(answer);
+                } catch (e) {
+                    console.error('Error starting stream:', e);
+                    this.stop();
+                }
+            }
+
+            stop() {
+                if (this.peerConnection) {
+                    this.peerConnection.close();
+                    this.peerConnection = null;
+                }
+                if (this.videoElement.srcObject) {
+                    this.videoElement.srcObject.getTracks().forEach(track => track.stop());
+                    this.videoElement.srcObject = null;
+                }
+            }
+        }
+
+        const players = new Map();
         const searchButton = document.getElementById('search-streams-btn');
         const startButton = document.getElementById('start-streams-btn');
         const streamsList = document.getElementById('streams-list');
         const streamsOptions = document.getElementById('streams-options');
         const cameraContainer = document.getElementById('camera-container');
 
-        // Function to search for streams via the API
         searchButton.addEventListener('click', async () => {
             try {
                 const response = await fetch('stream/api/search_stream');
                 const data = await response.json();
 
                 if (data.streams.length > 0) {
-                    streamsOptions.innerHTML = ''; // Clear previous options
+                    streamsOptions.innerHTML = '';
                     data.streams.forEach(stream => {
                         const li = document.createElement('li');
                         const checkbox = document.createElement('input');
                         checkbox.type = 'checkbox';
                         checkbox.id = `stream-${stream.id}`;
                         checkbox.value = stream.url;
+                        checkbox.dataset.name = stream.name;
 
                         const label = document.createElement('label');
                         label.setAttribute('for', `stream-${stream.id}`);
@@ -85,29 +136,41 @@
                     });
                     streamsList.classList.remove('hidden');
                 } else {
-                    alert('No streams found!');
+                    alert('No cameras found!');
                 }
             } catch (error) {
-                console.error('Error fetching streams:', error);
-                alert('Failed to search for streams.');
+                console.error('Error searching cameras:', error);
+                alert('Failed to search for cameras.');
             }
         });
 
-        // Function to start selected streams
-        startButton.addEventListener('click', () => {
+        startButton.addEventListener('click', async () => {
+            // Останавливаем все текущие потоки
+            players.forEach(player => player.stop());
+            players.clear();
+            cameraContainer.innerHTML = '';
+
+            // Запускаем выбранные потоки
             const selectedStreams = Array.from(
                 streamsOptions.querySelectorAll('input:checked')
-            ).map(input => input.value);
+            );
 
-            cameraContainer.innerHTML = ''; // Clear previous streams
-            selectedStreams.forEach(url => {
+            for (const input of selectedStreams) {
                 const video = document.createElement('video');
-                video.src = url;
-                video.controls = true;
                 video.autoplay = true;
+                video.playsInline = true;
                 video.classList.add('camera');
                 cameraContainer.appendChild(video);
-            });
+
+                const player = new RTSPPlayer(input.value, video);
+                players.set(input.value, player);
+                await player.start();
+            }
+        });
+
+        // Очистка при закрытии страницы
+        window.addEventListener('beforeunload', () => {
+            players.forEach(player => player.stop());
         });
     </script>
 </body>

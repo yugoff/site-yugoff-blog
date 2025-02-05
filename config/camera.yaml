@@ -1,0 +1,9 @@
+cameras:
+  - id: 1
+    name: "Test Camera 1"
+    url: "rtsp://0.0.0.0:8554/stream1"
+    location: "Test Location 1"
+  - id: 2
+    name: "Test Camera 2"
+    url: "rtsp://0.0.0.0:8554/stream2"
+    location: "Test Location 2"

@@ -3,12 +3,15 @@ services:
   web:
     build: .
     ports:
-      - '8000:8000'
+      - '8025:8000'
     environment:
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/db_yugoff_blog
     depends_on:
       db:
         condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
   db:
     image: postgres:latest
     environment:
@@ -16,7 +19,7 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: db_yugoff_blog
     ports:
-      - '5432:5432'
+      - '54321:5432'
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "postgres"]
       interval: 10s
